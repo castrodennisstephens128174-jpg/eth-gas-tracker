@@ -11,13 +11,14 @@ const {
   loading,
   refreshing,
   error,
+  isStale,
   gasPriceWei,
   priorityFeeWei,
   baseFeeWei,
   latestBlock,
   history,
   updatedAt,
-  reload
+  refresh
 } = useGasData()
 
 const gweiNow = computed(() => (gasPriceWei.value === null ? '—' : weiToGwei(gasPriceWei.value)))
@@ -41,12 +42,17 @@ const updatedLabel = computed(() =>
         <h1>Sepolia Gas Tracker</h1>
         <p class="sub">Live gas prices on the Ethereum Sepolia testnet</p>
       </div>
-      <button :disabled="refreshing || loading" @click="reload">
+      <button :disabled="refreshing || loading" @click="refresh">
         {{ refreshing ? 'Refreshing…' : 'Refresh' }}
       </button>
     </header>
 
-    <p v-if="error" class="alert">Failed to load gas data: {{ error }}</p>
+    <div v-if="error" class="alert" role="alert">
+      <span>Failed to load gas data: {{ error }}</span>
+      <button class="alert-retry" type="button" :disabled="refreshing" @click="refresh">
+        {{ refreshing ? 'Retrying…' : 'Retry' }}
+      </button>
+    </div>
 
     <template v-if="loading">
       <div class="skeleton-grid">
@@ -57,9 +63,9 @@ const updatedLabel = computed(() =>
 
     <template v-else>
       <div class="grid">
-        <StatCard label="Gas price now" :value="gweiNow" unit="gwei" hint="eth_gasPrice" />
-        <StatCard label="Base fee" :value="baseFee" unit="gwei" hint="Latest block" />
-        <StatCard label="Priority fee" :value="priorityFee" unit="gwei" hint="Suggested tip" />
+        <StatCard label="Gas price now" :value="gweiNow" unit="gwei" hint="eth_gasPrice" copyable />
+        <StatCard label="Base fee" :value="baseFee" unit="gwei" hint="Latest block" copyable />
+        <StatCard label="Priority fee" :value="priorityFee" unit="gwei" hint="Suggested tip" copyable />
         <StatCard
           label="Block utilization"
           :value="congestion"
@@ -73,7 +79,10 @@ const updatedLabel = computed(() =>
 
     <footer>
       <span>RPC: {{ RPC_URL }}</span>
-      <span>Updated {{ updatedLabel }} · auto-refresh 15s</span>
+      <span :class="{ stale: isStale && !error }">
+        <template v-if="!isStale || error">Updated {{ updatedLabel }} · auto-refresh 15s</template>
+        <template v-else>Data may be stale ({{ updatedLabel }}) · auto-refresh 15s</template>
+      </span>
     </footer>
   </div>
 </template>
@@ -127,6 +136,30 @@ button:disabled {
   background: rgba(239, 68, 68, 0.12);
   border: 1px solid rgba(239, 68, 68, 0.4);
   color: #fca5a5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.alert-retry {
+  border: 1px solid rgba(252, 165, 165, 0.6);
+  background: transparent;
+  color: #fca5a5;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.alert-retry:hover:not(:disabled) {
+  background: rgba(252, 165, 165, 0.12);
+}
+.alert-retry:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+footer .stale {
+  color: #f59e0b;
 }
 .grid,
 .skeleton-grid {
